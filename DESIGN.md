@@ -10,7 +10,7 @@
 
 ## 1. Mood / vibe
 
-One sentence that captures the feeling the tracker should leave you with.
+One sentence that captures the feeling the tracker should leave you with..
 
 Cool, confident, and culturally aware — the tracker feels like an editorial studio that moves between Tokyo and Berlin: calm but charged, with always one red moment.
 

@@ -5,6 +5,8 @@ import { DueDateTag } from './DueDateTag';
 import { Avatar } from './Teammate';
 import { ContextSection } from './ContextSection';
 import { CONTEXT_TEMPLATE } from './context';
+import { buildPromptContext } from './promptContext';
+import { copyText } from './clipboard';
 
 /**
  * Vibecoding Project Tracker — Okinawa Pop.
@@ -24,7 +26,11 @@ import { CONTEXT_TEMPLATE } from './context';
  *                 textarea with a live preview pane, an optional "AI tool"
  *                 dropdown (contextTool), an auto-stamped contextUpdatedAt with
  *                 a "last updated …" hint, and a placeholder template on new
- *                 tasks. (this file + context.js / markdown.js / ContextSection)
+ *                 tasks. (done — context.js / markdown.js / ContextSection)
+ * M10 copy-prompt: a "Copy Context" button on every card and in the modal that
+ *                 serializes title + description + Context into a clean Markdown
+ *                 briefing (promptContext.js), copies it to the clipboard
+ *                 (clipboard.js), and fires a success toast. (this file)
  */
 
 /**
@@ -231,6 +237,29 @@ function HandoffMenu({ task, onReassign }) {
 }
 
 /**
+ * "Copy Context" — serializes the task to a Markdown briefing and copies it to
+ * the clipboard (M10). Used both on the board card (compact) and in the modal.
+ * Stops propagation so a click on a card never also opens the edit modal.
+ *
+ * @param {{ task: Task, onCopy: (task: Task) => void, className?: string }} props
+ */
+function CopyContextButton({ task, onCopy, className = '' }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onCopy(task);
+      }}
+      title="Copy a Markdown briefing for this task"
+      className={`inline-flex shrink-0 items-center border-[1.5px] border-text-primary bg-surface-page px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-text-primary transition-colors hover:bg-text-primary hover:text-surface-page focus:border-brand-primary focus:outline-none ${className}`}
+    >
+      Copy Context
+    </button>
+  );
+}
+
+/**
  * A board card. The type accent (left stripe + corner icon) and the mono type
  * label both come from the shared `type-feature` / `type-bug` scheme so a card
  * reads the same here as it does in the modal.
@@ -240,9 +269,9 @@ function HandoffMenu({ task, onReassign }) {
  * The footer is kept out of the click-to-open region so the dropdown is its own
  * action and we avoid nesting interactive controls inside a button.
  *
- * @param {{ task: Task, onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void }} props
+ * @param {{ task: Task, onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void, onCopyContext: (task: Task) => void }} props
  */
-function TaskCard({ task, onOpen, onReassign }) {
+function TaskCard({ task, onOpen, onReassign, onCopyContext }) {
   return (
     <TaskTypeAccent type={task.type} className="p-3">
       <button
@@ -255,23 +284,26 @@ function TaskCard({ task, onOpen, onReassign }) {
         <DueDateTag task={task} className="mt-2" />
       </button>
 
-      <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2">
           <Avatar name={task.assignee} size="sm" />
           <span className="truncate font-mono text-xs uppercase tracking-wide text-text-muted">
             {task.assignee}
           </span>
         </span>
-        <HandoffMenu task={task} onReassign={onReassign} />
+        <span className="flex items-center gap-2">
+          <CopyContextButton task={task} onCopy={onCopyContext} />
+          <HandoffMenu task={task} onReassign={onReassign} />
+        </span>
       </div>
     </TaskTypeAccent>
   );
 }
 
 /**
- * @param {{ stage: typeof STAGES[number], tasks: Task[], onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void }} props
+ * @param {{ stage: typeof STAGES[number], tasks: Task[], onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void, onCopyContext: (task: Task) => void }} props
  */
-function KanbanColumn({ stage, tasks, onOpen, onReassign }) {
+function KanbanColumn({ stage, tasks, onOpen, onReassign, onCopyContext }) {
   return (
     <section className="flex min-w-0 flex-1 flex-col">
       <h2 className="mb-3 flex items-center justify-between font-heading text-base font-semibold uppercase tracking-wide text-text-primary">
@@ -292,6 +324,7 @@ function KanbanColumn({ stage, tasks, onOpen, onReassign }) {
               task={task}
               onOpen={onOpen}
               onReassign={onReassign}
+              onCopyContext={onCopyContext}
             />
           ))
         )}
@@ -316,9 +349,10 @@ const LABEL_CLASS =
  *   onClose: () => void,
  *   onSave: (task: Task) => void,
  *   onDelete: (id: string) => void,
+ *   onCopyContext: (task: Task) => void,
  * }} props
  */
-function TaskModal({ task, onClose, onSave, onDelete }) {
+function TaskModal({ task, onClose, onSave, onDelete, onCopyContext }) {
   const [form, setForm] = useState(task);
 
   useEffect(() => setForm(task), [task]);
@@ -475,9 +509,14 @@ function TaskModal({ task, onClose, onSave, onDelete }) {
             ) : (
               <span />
             )}
-            <Button variant="primary" type="submit">
-              {isExisting ? 'Save' : 'Add task'}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button variant="secondary" onClick={() => onCopyContext(form)}>
+                Copy Context
+              </Button>
+              <Button variant="primary" type="submit">
+                {isExisting ? 'Save' : 'Add task'}
+              </Button>
+            </div>
           </div>
         </form>
       </TaskTypeAccent>
@@ -586,6 +625,16 @@ export default function App() {
   const openEdit = (task) => setDraft(task);
   const closeModal = () => setDraft(null);
 
+  const copyTaskContext = async (task) => {
+    const ok = await copyText(buildPromptContext(task));
+    setToast({
+      id: Date.now(),
+      message: ok
+        ? 'Copied. Now paste it into the AI.'
+        : "Couldn't copy — select the Context field manually.",
+    });
+  };
+
   const reassignTask = (task, name) => {
     if (name === task.assignee) return;
     setTasks((prev) =>
@@ -638,6 +687,7 @@ export default function App() {
             tasks={tasks.filter((task) => task.status === stage.id)}
             onOpen={openEdit}
             onReassign={reassignTask}
+            onCopyContext={copyTaskContext}
           />
         ))}
       </main>
@@ -647,6 +697,7 @@ export default function App() {
         onClose={closeModal}
         onSave={saveTask}
         onDelete={deleteTask}
+        onCopyContext={copyTaskContext}
       />
 
       {toast && (

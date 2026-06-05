@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getTaskTypeMeta } from './taskType';
 import { TaskTypeAccent, TaskTypeLabel } from './TaskTypeAccent';
+import { DueDateTag } from './DueDateTag';
 import { Avatar } from './Teammate';
 
 /**
@@ -13,7 +14,10 @@ import { Avatar } from './Teammate';
  *                 in the modal, and on every type label. (done)
  * M7 task-owner : prominent assignee avatar on every card, a "Hand off to…"
  *                 dropdown that reassigns, a toast that acknowledges the handoff,
- *                 and a top strip showing who's driving what. (this file)
+ *                 and a top strip showing who's driving what. (done)
+ * M8 due-tint   : a CSS-only due-date tag whose color is derived live from the
+ *                 task's existing dueDate + status — safe / warning / overdue,
+ *                 and neutral once done (overrides the date). (this file)
  */
 
 /**
@@ -211,6 +215,7 @@ function TaskCard({ task, onOpen, onReassign }) {
       >
         <TaskTypeLabel type={task.type} />
         <h3 className="mt-2 text-sm font-medium text-text-primary">{task.title}</h3>
+        <DueDateTag task={task} className="mt-2" />
       </button>
 
       <div className="mt-3 flex items-center justify-between gap-2">
@@ -397,7 +402,10 @@ function TaskModal({ task, onClose, onSave, onDelete }) {
               </label>
 
               <label className="block">
-                <span className={LABEL_CLASS}>Due</span>
+                <span className="flex items-center justify-between gap-2">
+                  <span className={LABEL_CLASS}>Due</span>
+                  <DueDateTag task={form} />
+                </span>
                 <input
                   type="date"
                   className={FIELD_CLASS}

@@ -73,10 +73,91 @@ export function useLocalStorage(key, initialValue) {
   return [value, setValue];
 }
 
+/** @type {Task[]} */
+const SEED_TASKS = [
+  {
+    id: 'task-1',
+    title: 'Wire four-column Kanban layout',
+    description: 'Render STAGES as columns and filter tasks by status.',
+    type: 'feature',
+    status: 'done',
+    assignee: 'Teammate A',
+    dueDate: '2026-06-03',
+    createdDate: '2026-06-01',
+  },
+  {
+    id: 'task-2',
+    title: 'Modal focus trap breaks on mobile',
+    description: 'Tab cycling escapes the dialog on narrow viewports.',
+    type: 'bug',
+    status: 'in-progress',
+    assignee: 'Teammate B',
+    dueDate: '2026-06-06',
+    createdDate: '2026-06-02',
+  },
+  {
+    id: 'task-3',
+    title: 'Assignee badge styling',
+    description: 'Mono uppercase label with ink border per DESIGN.md.',
+    type: 'feature',
+    status: 'review',
+    assignee: 'Teammate C',
+    dueDate: '2026-06-08',
+    createdDate: '2026-06-03',
+  },
+  {
+    id: 'task-4',
+    title: 'Paste palette into Tailwind config',
+    description: 'Brand, surface, and type tokens from DESIGN.md §2.',
+    type: 'feature',
+    status: 'todo',
+    assignee: 'Teammate A',
+    dueDate: '2026-06-10',
+    createdDate: '2026-06-04',
+  },
+];
+
+/**
+ * @param {{ task: Task }} props
+ */
+function TaskCard({ task }) {
+  return (
+    <article className="border-[1.5px] border-text-primary bg-surface-card p-3">
+      <h3 className="text-sm font-medium text-text-primary">{task.title}</h3>
+      <p className="mt-2 font-mono text-xs uppercase tracking-wide text-text-muted">
+        {task.assignee}
+      </p>
+    </article>
+  );
+}
+
+/**
+ * @param {{ stage: typeof STAGES[number], tasks: Task[] }} props
+ */
+function KanbanColumn({ stage, tasks }) {
+  return (
+    <section className="flex min-w-0 flex-1 flex-col">
+      <h2 className="mb-3 font-heading text-base font-semibold uppercase tracking-wide text-text-primary">
+        {stage.label}
+      </h2>
+      <div className="flex flex-1 flex-col gap-3">
+        {tasks.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center border-[1.5px] border-dashed border-text-primary p-6">
+            <p className="font-mono text-xs uppercase tracking-wide text-text-muted">
+              Nothing here yet — keep going.
+            </p>
+          </div>
+        ) : (
+          tasks.map((task) => <TaskCard key={task.id} task={task} />)
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function App() {
-  // TODO M4 data-model:
-  //   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', [/* 3-4 seed tasks */]);
-  //
+  const [tasks] = useLocalStorage('vibetracker.tasks', SEED_TASKS);
+
   // TODO M5 crud-modal:
   //   const [editing, setEditing] = useState(null);
   //
@@ -84,33 +165,31 @@ export default function App() {
   //   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', [...]);
 
   return (
-    <div className="min-h-screen p-6">
-      <header className="mb-6 flex items-end justify-between">
+    <div className="min-h-screen bg-surface-page p-6">
+      <header className="mb-8 flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Vibecoding Project Tracker
+          <h1 className="font-heading text-2xl font-semibold uppercase tracking-wide text-brand-primary">
+            Okinawa Pop
           </h1>
-          <p className="text-sm text-slate-500">
-            {/* Replace this line with your team name from PRD §11. */}
-            Team starter
-          </p>
+          <p className="mt-1 text-sm text-text-muted">Project tracker</p>
         </div>
       </header>
 
       {/* TODO M11 anchors: render the Anchor Board (Presentation / Demo / Report / Documentation) above the board. */}
 
       {/*
-        TODO M4 data-model:
-          Render a Kanban board with the four columns from STAGES.
-          Each column should display the tasks whose status matches its id.
-          Pre-populate 3-4 mock tasks so the board isn't empty on first load.
-
         TODO M5 crud-modal:
           Add a "+" button that opens a modal with every Task field.
           Clicking a card should open the same modal in edit mode.
       */}
-      <main className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-slate-400">
-        Build the four-column board here · M4
+      <main className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {STAGES.map((stage) => (
+          <KanbanColumn
+            key={stage.id}
+            stage={stage}
+            tasks={tasks.filter((task) => task.status === stage.id)}
+          />
+        ))}
       </main>
     </div>
   );

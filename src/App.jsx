@@ -284,54 +284,116 @@ function CopyContextButton({ task, onCopy, className = '' }) {
  * The footer is kept out of the click-to-open region so the dropdown is its own
  * action and we avoid nesting interactive controls inside a button.
  *
- * @param {{ task: Task, onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void, onCopyContext: (task: Task) => void }} props
+ * The whole card is draggable (M-dnd): grab it and drop onto another column to
+ * change its status. We use native HTML5 drag so no extra dependency is needed.
+ * Nested buttons/selects still work — a plain click never starts a drag.
+ *
+ * @param {{ task: Task, onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void, onCopyContext: (task: Task) => void, onDragStart: (task: Task) => void, onDragEnd: () => void }} props
  */
-function TaskCard({ task, onOpen, onReassign, onCopyContext }) {
-  return (
-    <TaskTypeAccent
-      type={task.type}
-      className="group hover-lift p-4 transition-[transform,border-color,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:border-brand-primary hover:shadow-offset-sm"
-    >
-      <button
-        type="button"
-        onClick={() => onOpen(task)}
-        className="block w-full text-left"
-      >
-        <div className="flex items-center justify-between gap-2">
-          <TaskTypeLabel type={task.type} />
-          <DueDateTag task={task} />
-        </div>
-        <h3 className="mt-3 font-heading text-base font-semibold leading-snug tracking-tight text-text-primary transition-colors duration-150 group-hover:text-brand-primary">
-          {task.title}
-        </h3>
-      </button>
+function TaskCard({ task, onOpen, onReassign, onCopyContext, onDragStart, onDragEnd }) {
+  const handleDragStart = (e) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+    onDragStart(task);
+  };
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-text-muted/40 pt-3">
-        <span className="flex min-w-0 items-center gap-2">
-          <Avatar name={task.assignee} size="sm" />
-          <span className="label-mark truncate text-[11px] text-text-muted">
-            {task.assignee}
+  return (
+    <div
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={onDragEnd}
+      className="cursor-grab active:cursor-grabbing"
+    >
+      <TaskTypeAccent
+        type={task.type}
+        className="group hover-lift p-4 transition-[transform,border-color,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:border-brand-primary hover:shadow-offset-sm"
+      >
+        <button
+          type="button"
+          onClick={() => onOpen(task)}
+          className="block w-full text-left"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <TaskTypeLabel type={task.type} />
+            <DueDateTag task={task} />
+          </div>
+          <h3 className="mt-3 font-heading text-base font-semibold leading-snug tracking-tight text-text-primary transition-colors duration-150 group-hover:text-brand-primary">
+            {task.title}
+          </h3>
+        </button>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-text-muted/40 pt-3">
+          <span className="flex min-w-0 items-center gap-2">
+            <Avatar name={task.assignee} size="sm" />
+            <span className="label-mark truncate text-[11px] text-text-muted">
+              {task.assignee}
+            </span>
           </span>
-        </span>
-        <span className="flex items-center gap-2">
-          <CopyContextButton task={task} onCopy={onCopyContext} />
-          <HandoffMenu task={task} onReassign={onReassign} />
-        </span>
-      </div>
-    </TaskTypeAccent>
+          <span className="flex items-center gap-2">
+            <CopyContextButton task={task} onCopy={onCopyContext} />
+            <HandoffMenu task={task} onReassign={onReassign} />
+          </span>
+        </div>
+      </TaskTypeAccent>
+    </div>
   );
 }
 
 /**
- * @param {{ stage: typeof STAGES[number], index: number, tasks: Task[], onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void, onCopyContext: (task: Task) => void }} props
+ * A board column. Doubles as a drop target (M-dnd): dropping a card here moves
+ * it to this stage. `isDropTarget` lights up the drop zone while a drag from
+ * another column hovers over it.
+ *
+ * @param {{ stage: typeof STAGES[number], index: number, tasks: Task[], onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void, onCopyContext: (task: Task) => void, draggingId: string | null, onMove: (taskId: string, status: string) => void, onDragStart: (task: Task) => void, onDragEnd: () => void }} props
  */
-function KanbanColumn({ stage, index, tasks, onOpen, onReassign, onCopyContext }) {
+function KanbanColumn({
+  stage,
+  index,
+  tasks,
+  onOpen,
+  onReassign,
+  onCopyContext,
+  draggingId,
+  onMove,
+  onDragStart,
+  onDragEnd,
+}) {
   const num = String(index + 1).padStart(2, '0');
+
+  // Are we mid-drag, and is the dragged card from a *different* column? Only
+  // then is dropping here a meaningful move worth highlighting.
+  const isDragging = draggingId != null;
+  const cameFromHere = tasks.some((t) => t.id === draggingId);
+  const [isOver, setIsOver] = useState(false);
+  const canDrop = isDragging && !cameFromHere;
+
+  const handleDragOver = (e) => {
+    if (!canDrop) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!isOver) setIsOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    // Ignore moves between this column's own children.
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setIsOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsOver(false);
+    const id = e.dataTransfer.getData('text/plain') || draggingId;
+    if (id) onMove(id, stage.id);
+  };
 
   return (
     <section
       className="flex min-w-0 flex-1 flex-col animate-reveal-up"
       style={{ animationDelay: `${index * 90}ms` }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       <div className="mb-4 border-b-[1.5px] border-text-primary pb-2">
         <span className="label-mark text-[10px] text-brand-primary">{num}</span>
@@ -342,11 +404,25 @@ function KanbanColumn({ stage, index, tasks, onOpen, onReassign, onCopyContext }
           </span>
         </h2>
       </div>
-      <div className="flex flex-1 flex-col gap-3">
+      <div
+        className={`flex flex-1 flex-col gap-3 transition-colors duration-150 ${
+          isOver
+            ? 'rounded-sm bg-brand-primary/10 outline-dashed outline-[1.5px] outline-offset-4 outline-brand-primary'
+            : ''
+        }`}
+      >
         {tasks.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center border-[1.5px] border-dashed border-text-muted p-6">
+          <div
+            className={`flex flex-1 items-center justify-center border-[1.5px] border-dashed p-6 transition-colors duration-150 ${
+              isOver ? 'border-brand-primary' : 'border-text-muted'
+            }`}
+          >
             <p className="label-mark text-center text-[11px] text-text-muted">
-              Nothing here yet —<br />keep going.
+              {canDrop ? (
+                <>Drop to move<br />here.</>
+              ) : (
+                <>Nothing here yet —<br />keep going.</>
+              )}
             </p>
           </div>
         ) : (
@@ -357,6 +433,8 @@ function KanbanColumn({ stage, index, tasks, onOpen, onReassign, onCopyContext }
               onOpen={onOpen}
               onReassign={onReassign}
               onCopyContext={onCopyContext}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
             />
           ))
         )}
@@ -937,6 +1015,9 @@ export default function App() {
   // back-to-back handoff restarts the fade instead of being swallowed.
   const [toast, setToast] = useState(null);
 
+  // M-dnd — id of the card currently being dragged across the board, or null.
+  const [draggingId, setDraggingId] = useState(null);
+
   const openNew = () => setDraft(emptyDraft());
   const openEdit = (task) => setDraft(task);
   const closeModal = () => setDraft(null);
@@ -957,6 +1038,21 @@ export default function App() {
       prev.map((t) => (t.id === task.id ? { ...t, assignee: name } : t)),
     );
     setToast({ id: Date.now(), message: `Handed off to ${name}. They've got it.` });
+  };
+
+  // Move a card to another column by updating its status. Mirrors reassignTask;
+  // the localStorage sync and column re-filter happen automatically on setTasks.
+  const moveTask = (taskId, newStatus) => {
+    // Clear the drag state here too: the dropped card re-mounts in its new
+    // column, so its original element never fires `dragend` to reset opacity.
+    setDraggingId(null);
+    setTasks((prev) => {
+      const task = prev.find((t) => t.id === taskId);
+      if (!task || task.status === newStatus) return prev;
+      return prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
+    });
+    const label = STAGES.find((s) => s.id === newStatus)?.label ?? newStatus;
+    setToast({ id: Date.now(), message: `Moved to ${label}.` });
   };
 
   const saveTask = (task) => {
@@ -1029,6 +1125,10 @@ export default function App() {
                 onOpen={openEdit}
                 onReassign={reassignTask}
                 onCopyContext={copyTaskContext}
+                draggingId={draggingId}
+                onMove={moveTask}
+                onDragStart={(task) => setDraggingId(task.id)}
+                onDragEnd={() => setDraggingId(null)}
               />
             ))}
           </main>

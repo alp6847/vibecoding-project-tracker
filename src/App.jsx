@@ -3,6 +3,8 @@ import { getTaskTypeMeta } from './taskType';
 import { TaskTypeAccent, TaskTypeLabel } from './TaskTypeAccent';
 import { DueDateTag } from './DueDateTag';
 import { Avatar } from './Teammate';
+import { ContextSection } from './ContextSection';
+import { CONTEXT_TEMPLATE } from './context';
 
 /**
  * Vibecoding Project Tracker — Okinawa Pop.
@@ -17,7 +19,12 @@ import { Avatar } from './Teammate';
  *                 and a top strip showing who's driving what. (done)
  * M8 due-tint   : a CSS-only due-date tag whose color is derived live from the
  *                 task's existing dueDate + status — safe / warning / overdue,
- *                 and neutral once done (overrides the date). (this file)
+ *                 and neutral once done (overrides the date). (done)
+ * M9 context    : a curated Markdown Context briefing on the task modal — a
+ *                 textarea with a live preview pane, an optional "AI tool"
+ *                 dropdown (contextTool), an auto-stamped contextUpdatedAt with
+ *                 a "last updated …" hint, and a placeholder template on new
+ *                 tasks. (this file + context.js / markdown.js / ContextSection)
  */
 
 /**
@@ -30,6 +37,9 @@ import { Avatar } from './Teammate';
  * @property {string} assignee
  * @property {string|null} dueDate     ISO 'YYYY-MM-DD'
  * @property {string} createdDate      ISO 'YYYY-MM-DD'
+ * @property {string} context          M9 — curated Markdown briefing
+ * @property {string|null} contextTool M9 — 'Claude' | 'ChatGPT' | … | 'Other'
+ * @property {string|null} contextUpdatedAt M9 — ISO timestamp, auto-set on edit
  */
 
 // The four columns of the board, in render order.
@@ -90,6 +100,9 @@ function emptyDraft() {
     assignee: TEAM[0],
     dueDate: '',
     createdDate: todayISO(),
+    context: CONTEXT_TEMPLATE,
+    contextTool: null,
+    contextUpdatedAt: null,
   };
 }
 
@@ -104,6 +117,21 @@ const SEED_TASKS = [
     assignee: 'Alex',
     dueDate: '2026-06-03',
     createdDate: '2026-06-01',
+    context: `## Background
+The board is the spine of the tracker — everything else hangs off **STAGES**.
+
+## Constraints
+- Desktop only (PRD §12).
+- No drag-and-drop; status is a \`<select>\` in the modal.
+
+## Tried so far
+Filtered \`tasks\` by \`status\` per column. Empty columns show the
+\`Nothing here yet — keep going.\` placeholder.
+
+## Pick up
+Layout is shipped. Next milestone wires the [CRUD modal](https://example.com).`,
+    contextTool: 'Cursor',
+    contextUpdatedAt: '2026-06-03T09:12:00.000Z',
   },
   {
     id: 'task-2',
@@ -114,6 +142,9 @@ const SEED_TASKS = [
     assignee: 'Eva',
     dueDate: '2026-06-06',
     createdDate: '2026-06-02',
+    context: '',
+    contextTool: null,
+    contextUpdatedAt: null,
   },
   {
     id: 'task-3',
@@ -124,6 +155,9 @@ const SEED_TASKS = [
     assignee: 'Franzi',
     dueDate: '2026-06-08',
     createdDate: '2026-06-03',
+    context: '',
+    contextTool: null,
+    contextUpdatedAt: null,
   },
   {
     id: 'task-4',
@@ -134,6 +168,9 @@ const SEED_TASKS = [
     assignee: 'Alex',
     dueDate: '2026-06-10',
     createdDate: '2026-06-04',
+    context: '',
+    contextTool: null,
+    contextUpdatedAt: null,
   },
 ];
 
@@ -301,6 +338,12 @@ function TaskModal({ task, onClose, onSave, onDelete }) {
   const isExisting = Boolean(task.id);
   const update = (patch) => setForm((f) => ({ ...f, ...patch }));
 
+  // Editing the Context field auto-stamps `contextUpdatedAt` so the "last
+  // updated …" hint stays honest and the freshness survives the next save.
+  const updateContext = (context) =>
+    update({ context, contextUpdatedAt: new Date().toISOString() });
+  const updateContextTool = (contextTool) => update({ contextTool });
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title.trim()) return;
@@ -313,7 +356,7 @@ function TaskModal({ task, onClose, onSave, onDelete }) {
       style={{ backgroundColor: 'rgba(0, 16, 64, 0.5)' }}
       onClick={onClose}
     >
-      <TaskTypeAccent type={form.type} className="w-full max-w-md p-5">
+      <TaskTypeAccent type={form.type} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto p-5">
         <form onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
           <div className="flex items-start justify-between gap-3">
             <TaskTypeLabel type={form.type} />
@@ -414,6 +457,14 @@ function TaskModal({ task, onClose, onSave, onDelete }) {
                 />
               </label>
             </div>
+
+            <ContextSection
+              context={form.context}
+              contextTool={form.contextTool ?? null}
+              contextUpdatedAt={form.contextUpdatedAt ?? null}
+              onContextChange={updateContext}
+              onToolChange={updateContextTool}
+            />
           </div>
 
           <div className="mt-6 flex items-center justify-between gap-3">

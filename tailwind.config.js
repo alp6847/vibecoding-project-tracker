@@ -11,6 +11,7 @@ export default {
         surface: {
           page: '#F5F4F0',
           card: '#E8DCC8',
+          backdrop: '#001040',
         },
         text: {
           primary: '#0D0D0D',

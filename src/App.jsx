@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getTaskTypeMeta } from './taskType';
 import { TaskTypeAccent, TaskTypeLabel } from './TaskTypeAccent';
+import { Avatar } from './Teammate';
 
 /**
  * Vibecoding Project Tracker — Okinawa Pop.
@@ -9,7 +10,10 @@ import { TaskTypeAccent, TaskTypeLabel } from './TaskTypeAccent';
  * M5 crud-modal : "+" add modal, click-to-edit modal, delete, status dropdown,
  *                 everything persisted to localStorage. (done)
  * M6 tag-style  : per-type accent colour + corner icon, applied on the board,
- *                 in the modal, and on every type label. (this file)
+ *                 in the modal, and on every type label. (done)
+ * M7 task-owner : prominent assignee avatar on every card, a "Hand off to…"
+ *                 dropdown that reassigns, a toast that acknowledges the handoff,
+ *                 and a top strip showing who's driving what. (this file)
  */
 
 /**
@@ -155,32 +159,77 @@ function Button({ variant = 'primary', className = '', ...props }) {
 }
 
 /**
+ * "Hand off to…" — a compact reassignment dropdown. Lists only the teammates
+ * who don't already own the task; picking one fires `onReassign` and the select
+ * snaps back to its placeholder so it always reads as an action, never a state.
+ *
+ * @param {{ task: Task, onReassign: (task: Task, name: string) => void }} props
+ */
+function HandoffMenu({ task, onReassign }) {
+  return (
+    <label className="shrink-0">
+      <span className="sr-only">Hand off {task.title} to a teammate</span>
+      <select
+        value=""
+        onChange={(e) => {
+          const name = e.target.value;
+          if (name) onReassign(task, name);
+          e.target.value = '';
+        }}
+        className="cursor-pointer border-[1.5px] border-text-primary bg-surface-page px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-text-primary transition-colors hover:bg-text-primary hover:text-surface-page focus:border-brand-primary focus:outline-none"
+      >
+        <option value="">Hand off to…</option>
+        {TEAM.filter((name) => name !== task.assignee).map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
  * A board card. The type accent (left stripe + corner icon) and the mono type
  * label both come from the shared `type-feature` / `type-bug` scheme so a card
  * reads the same here as it does in the modal.
  *
- * @param {{ task: Task, onOpen: (task: Task) => void }} props
+ * The card body opens the edit modal; the footer carries the owner avatar
+ * (M7 — see whose task it is at a glance) and the "Hand off to…" dropdown.
+ * The footer is kept out of the click-to-open region so the dropdown is its own
+ * action and we avoid nesting interactive controls inside a button.
+ *
+ * @param {{ task: Task, onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void }} props
  */
-function TaskCard({ task, onOpen }) {
+function TaskCard({ task, onOpen, onReassign }) {
   return (
-    <TaskTypeAccent
-      type={task.type}
-      onClick={() => onOpen(task)}
-      className="p-3 transition-colors hover:bg-brand-accent/10"
-    >
-      <TaskTypeLabel type={task.type} />
-      <h3 className="mt-2 text-sm font-medium text-text-primary">{task.title}</h3>
-      <p className="mt-2 font-mono text-xs uppercase tracking-wide text-text-muted">
-        {task.assignee}
-      </p>
+    <TaskTypeAccent type={task.type} className="p-3">
+      <button
+        type="button"
+        onClick={() => onOpen(task)}
+        className="block w-full text-left transition-opacity hover:opacity-70"
+      >
+        <TaskTypeLabel type={task.type} />
+        <h3 className="mt-2 text-sm font-medium text-text-primary">{task.title}</h3>
+      </button>
+
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-2">
+          <Avatar name={task.assignee} size="sm" />
+          <span className="truncate font-mono text-xs uppercase tracking-wide text-text-muted">
+            {task.assignee}
+          </span>
+        </span>
+        <HandoffMenu task={task} onReassign={onReassign} />
+      </div>
     </TaskTypeAccent>
   );
 }
 
 /**
- * @param {{ stage: typeof STAGES[number], tasks: Task[], onOpen: (task: Task) => void }} props
+ * @param {{ stage: typeof STAGES[number], tasks: Task[], onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void }} props
  */
-function KanbanColumn({ stage, tasks, onOpen }) {
+function KanbanColumn({ stage, tasks, onOpen, onReassign }) {
   return (
     <section className="flex min-w-0 flex-1 flex-col">
       <h2 className="mb-3 flex items-center justify-between font-heading text-base font-semibold uppercase tracking-wide text-text-primary">
@@ -196,7 +245,12 @@ function KanbanColumn({ stage, tasks, onOpen }) {
           </div>
         ) : (
           tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onOpen={onOpen} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              onOpen={onOpen}
+              onReassign={onReassign}
+            />
           ))
         )}
       </div>
@@ -326,17 +380,20 @@ function TaskModal({ task, onClose, onSave, onDelete }) {
 
               <label className="block">
                 <span className={LABEL_CLASS}>Assignee</span>
-                <select
-                  className={FIELD_CLASS}
-                  value={form.assignee}
-                  onChange={(e) => update({ assignee: e.target.value })}
-                >
-                  {TEAM.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
+                <span className="mt-1 flex items-center gap-2">
+                  <Avatar name={form.assignee} size="sm" />
+                  <select
+                    className={`${FIELD_CLASS} mt-0`}
+                    value={form.assignee}
+                    onChange={(e) => update({ assignee: e.target.value })}
+                  >
+                    {TEAM.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </span>
               </label>
 
               <label className="block">
@@ -369,6 +426,90 @@ function TaskModal({ task, onClose, onSave, onDelete }) {
   );
 }
 
+/**
+ * Top strip: who is currently driving what. "Driving" = the teammate's
+ * In Progress tasks. Gives the team a one-glance answer to "who's on what right
+ * now?" and updates live as tasks are handed off or moved across columns.
+ *
+ * @param {{ tasks: Task[] }} props
+ */
+function DriverStrip({ tasks }) {
+  return (
+    <section className="mb-8 border-[1.5px] border-text-primary bg-surface-card">
+      <h2 className="border-b-[1.5px] border-text-primary px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wide text-text-muted">
+        Who's driving what
+      </h2>
+      <div className="grid grid-cols-1 divide-y-[1.5px] divide-text-primary md:grid-cols-3 md:divide-x-[1.5px] md:divide-y-0">
+        {TEAM.map((name) => {
+          const driving = tasks.filter(
+            (t) => t.assignee === name && t.status === 'in-progress',
+          );
+          const primary = driving[0];
+          const extra = driving.length - 1;
+
+          return (
+            <div key={name} className="flex items-center gap-3 p-4">
+              <Avatar name={name} size="lg" />
+              <div className="min-w-0">
+                <p className="font-mono text-xs font-medium uppercase tracking-wide text-text-primary">
+                  {name}
+                </p>
+                {primary ? (
+                  <p className="truncate text-sm text-text-muted">
+                    {primary.title}
+                    {extra > 0 ? (
+                      <span className="font-mono text-xs"> +{extra} more</span>
+                    ) : null}
+                  </p>
+                ) : (
+                  <p className="font-mono text-xs uppercase tracking-wide text-text-muted">
+                    Not driving anything
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Handoff acknowledgment toast — DESIGN.md §5 microcopy, §7 "200 ms fade".
+ * Fades in on mount, fades out after a beat, then calls `onDone` to unmount.
+ *
+ * @param {{ message: string, onDone: () => void }} props
+ */
+function Toast({ message, onDone }) {
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    const enter = requestAnimationFrame(() => setShown(true));
+    const hide = setTimeout(() => setShown(false), 2400);
+    const done = setTimeout(onDone, 2600);
+    return () => {
+      cancelAnimationFrame(enter);
+      clearTimeout(hide);
+      clearTimeout(done);
+    };
+  }, [onDone]);
+
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center">
+      <div
+        role="status"
+        aria-live="polite"
+        className={`border-[1.5px] border-text-primary bg-text-primary px-4 py-2 font-mono text-xs uppercase tracking-wide text-surface-page transition-opacity duration-200 ${
+          shown ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        {message}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', SEED_TASKS);
 
@@ -378,9 +519,21 @@ export default function App() {
   //   { id: 'task-x' } → editing an existing task
   const [draft, setDraft] = useState(null);
 
+  // The current handoff acknowledgment, or null. `id` re-mounts <Toast/> so a
+  // back-to-back handoff restarts the fade instead of being swallowed.
+  const [toast, setToast] = useState(null);
+
   const openNew = () => setDraft(emptyDraft());
   const openEdit = (task) => setDraft(task);
   const closeModal = () => setDraft(null);
+
+  const reassignTask = (task, name) => {
+    if (name === task.assignee) return;
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, assignee: name } : t)),
+    );
+    setToast({ id: Date.now(), message: `Handed off to ${name}. They've got it.` });
+  };
 
   const saveTask = (task) => {
     setTasks((prev) => {
@@ -416,6 +569,8 @@ export default function App() {
 
       {/* TODO M11 anchors: render the Anchor Board above the board. */}
 
+      <DriverStrip tasks={tasks} />
+
       <main className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         {STAGES.map((stage) => (
           <KanbanColumn
@@ -423,6 +578,7 @@ export default function App() {
             stage={stage}
             tasks={tasks.filter((task) => task.status === stage.id)}
             onOpen={openEdit}
+            onReassign={reassignTask}
           />
         ))}
       </main>
@@ -433,6 +589,14 @@ export default function App() {
         onSave={saveTask}
         onDelete={deleteTask}
       />
+
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          onDone={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

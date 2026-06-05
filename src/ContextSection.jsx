@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { AI_TOOLS, formatRelativeTime } from './context';
 import { renderMarkdown } from './markdown';
 
-const LABEL_CLASS = 'font-mono text-xs uppercase tracking-wide text-text-muted';
+const LABEL_CLASS = 'label-mark text-[11px] text-text-muted';
 const FIELD_CLASS =
-  'mt-1 w-full border-[1.5px] border-text-primary bg-surface-page px-3 py-2 text-sm text-text-primary focus:border-brand-primary focus:outline-none';
+  'mt-1 w-full border-[1.5px] border-text-primary bg-surface-page px-3 py-2 text-sm text-text-primary transition-colors focus:border-brand-primary focus:outline-none';
 
 /**
  * M9 context — the curated-briefing block on the task modal.

@@ -202,7 +202,7 @@ Layout is shipped. Next milestone wires the [CRUD modal](https://example.com).`,
  */
 function Button({ variant = 'primary', className = '', ...props }) {
   const base =
-    'inline-flex items-center justify-center border-[1.5px] px-4 py-2 font-mono text-xs font-medium uppercase tracking-wide transition-colors';
+    'label-mark inline-flex items-center justify-center border-[1.5px] px-4 py-2 text-xs font-medium transition-all duration-150 ease-out active:translate-x-[1px] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-40';
   const variants = {
     primary:
       'border-brand-primary bg-brand-primary text-surface-page hover:border-text-primary hover:bg-text-primary',
@@ -288,21 +288,28 @@ function CopyContextButton({ task, onCopy, className = '' }) {
  */
 function TaskCard({ task, onOpen, onReassign, onCopyContext }) {
   return (
-    <TaskTypeAccent type={task.type} className="p-3">
+    <TaskTypeAccent
+      type={task.type}
+      className="group hover-lift p-4 transition-[transform,border-color,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:border-brand-primary hover:shadow-offset-sm"
+    >
       <button
         type="button"
         onClick={() => onOpen(task)}
-        className="block w-full text-left transition-opacity hover:opacity-70"
+        className="block w-full text-left"
       >
-        <TaskTypeLabel type={task.type} />
-        <h3 className="mt-2 text-sm font-medium text-text-primary">{task.title}</h3>
-        <DueDateTag task={task} className="mt-2" />
+        <div className="flex items-center justify-between gap-2">
+          <TaskTypeLabel type={task.type} />
+          <DueDateTag task={task} />
+        </div>
+        <h3 className="mt-3 font-heading text-base font-semibold leading-snug tracking-tight text-text-primary transition-colors duration-150 group-hover:text-brand-primary">
+          {task.title}
+        </h3>
       </button>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-text-muted/40 pt-3">
         <span className="flex min-w-0 items-center gap-2">
           <Avatar name={task.assignee} size="sm" />
-          <span className="truncate font-mono text-xs uppercase tracking-wide text-text-muted">
+          <span className="label-mark truncate text-[11px] text-text-muted">
             {task.assignee}
           </span>
         </span>
@@ -316,20 +323,30 @@ function TaskCard({ task, onOpen, onReassign, onCopyContext }) {
 }
 
 /**
- * @param {{ stage: typeof STAGES[number], tasks: Task[], onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void, onCopyContext: (task: Task) => void }} props
+ * @param {{ stage: typeof STAGES[number], index: number, tasks: Task[], onOpen: (task: Task) => void, onReassign: (task: Task, name: string) => void, onCopyContext: (task: Task) => void }} props
  */
-function KanbanColumn({ stage, tasks, onOpen, onReassign, onCopyContext }) {
+function KanbanColumn({ stage, index, tasks, onOpen, onReassign, onCopyContext }) {
+  const num = String(index + 1).padStart(2, '0');
+
   return (
-    <section className="flex min-w-0 flex-1 flex-col">
-      <h2 className="mb-3 flex items-center justify-between font-heading text-base font-semibold uppercase tracking-wide text-text-primary">
-        <span>{stage.label}</span>
-        <span className="font-mono text-xs text-text-muted">{tasks.length}</span>
-      </h2>
+    <section
+      className="flex min-w-0 flex-1 flex-col animate-reveal-up"
+      style={{ animationDelay: `${index * 90}ms` }}
+    >
+      <div className="mb-4 border-b-[1.5px] border-text-primary pb-2">
+        <span className="label-mark text-[10px] text-brand-primary">{num}</span>
+        <h2 className="mt-1 flex items-baseline justify-between gap-2 font-display text-2xl font-medium uppercase tracking-tight text-text-primary">
+          <span>{stage.label}</span>
+          <span className="label-mark text-xs font-normal text-text-muted">
+            {String(tasks.length).padStart(2, '0')}
+          </span>
+        </h2>
+      </div>
       <div className="flex flex-1 flex-col gap-3">
         {tasks.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center border-[1.5px] border-dashed border-text-primary p-6">
-            <p className="font-mono text-xs uppercase tracking-wide text-text-muted">
-              Nothing here yet — keep going.
+          <div className="flex flex-1 items-center justify-center border-[1.5px] border-dashed border-text-muted p-6">
+            <p className="label-mark text-center text-[11px] text-text-muted">
+              Nothing here yet —<br />keep going.
             </p>
           </div>
         ) : (
@@ -350,9 +367,8 @@ function KanbanColumn({ stage, tasks, onOpen, onReassign, onCopyContext }) {
 
 /** Shared field styling — sharp ink-bordered inputs per DESIGN.md §4. */
 const FIELD_CLASS =
-  'mt-1 w-full border-[1.5px] border-text-primary bg-surface-page px-3 py-2 text-sm text-text-primary focus:border-brand-primary focus:outline-none';
-const LABEL_CLASS =
-  'font-mono text-xs uppercase tracking-wide text-text-muted';
+  'mt-1 w-full border-[1.5px] border-text-primary bg-surface-page px-3 py-2 text-sm text-text-primary transition-colors focus:border-brand-primary focus:outline-none';
+const LABEL_CLASS = 'label-mark text-[11px] text-text-muted';
 
 /**
  * Create/edit task modal. The panel reuses the same type color scheme as the
@@ -401,26 +417,37 @@ function TaskModal({ task, onClose, onSave, onDelete, onCopyContext }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6"
-      style={{ backgroundColor: 'rgba(0, 16, 64, 0.5)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-scrim-in sm:p-6"
+      style={{ backgroundColor: 'rgba(0, 16, 64, 0.55)' }}
       onClick={onClose}
     >
-      <TaskTypeAccent type={form.type} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto p-5">
+      <TaskTypeAccent
+        type={form.type}
+        className="max-h-[90vh] w-full max-w-2xl animate-scale-in overflow-y-auto p-6 shadow-offset"
+      >
         <form onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
-          <div className="flex items-start justify-between gap-3">
-            <TaskTypeLabel type={form.type} />
+          <div className="flex items-start justify-between gap-3 border-b-[1.5px] border-text-primary pb-3">
+            <div className="flex items-center gap-3">
+              <TaskTypeLabel type={form.type} />
+              <span className="label-mark text-[10px] text-text-muted">
+                {isExisting ? `Rec · ${task.id}` : 'Rec · New'}
+              </span>
+            </div>
             <button
               type="button"
               onClick={onClose}
-              className="font-mono text-xs uppercase tracking-wide text-text-muted hover:text-text-primary"
+              className="label-mark text-[11px] text-text-muted transition-colors hover:text-accent-red"
             >
-              Close
+              Close ✕
             </button>
           </div>
 
-          <h2 className={`mt-3 font-heading text-xl font-semibold ${meta.textClass}`}>
-            {isExisting ? 'Edit task' : 'New task'}
-          </h2>
+          <div className="mt-4 flex items-baseline gap-3">
+            <span className="label-mark text-[11px] text-brand-primary">§</span>
+            <h2 className={`font-heading text-3xl font-bold uppercase tracking-tight ${meta.textClass}`}>
+              {isExisting ? 'Edit task' : 'New task'}
+            </h2>
+          </div>
 
           <div className="mt-4 space-y-4">
             <label className="block">
@@ -516,7 +543,7 @@ function TaskModal({ task, onClose, onSave, onDelete, onCopyContext }) {
             />
           </div>
 
-          <div className="mt-6 flex items-center justify-between gap-3">
+          <div className="mt-6 flex items-center justify-between gap-3 border-t-[1.5px] border-text-primary pt-4">
             {isExisting ? (
               <Button variant="danger" onClick={() => onDelete(task.id)}>
                 Delete
@@ -552,18 +579,18 @@ function AnchorCard({ anchor, url, onChange }) {
   const inputId = `anchor-${anchor.id}`;
 
   return (
-    <div className="flex min-w-0 flex-col gap-3 border-[1.5px] border-text-primary bg-surface-card p-4">
+    <div className="hover-lift flex min-w-0 flex-col gap-3 border-[1.5px] border-text-primary bg-surface-card p-4 transition-[transform,border-color] duration-200 ease-out hover:-translate-y-1 hover:border-brand-primary">
       <div className="flex items-center justify-between gap-2">
         <label
           htmlFor={inputId}
-          className="font-mono text-xs font-medium uppercase tracking-wide text-text-primary"
+          className="label-mark text-[11px] font-medium text-text-primary"
         >
           {anchor.label}
         </label>
         <span
           aria-hidden="true"
           title={filled ? 'Link added' : 'No link yet'}
-          className={`h-3 w-3 shrink-0 rounded-full border-[1.5px] border-text-primary transition-colors ${
+          className={`h-3 w-3 shrink-0 border-[1.5px] border-text-primary transition-colors ${
             filled ? 'bg-brand-primary' : 'bg-transparent'
           }`}
         />
@@ -579,7 +606,7 @@ function AnchorCard({ anchor, url, onChange }) {
         placeholder="Paste a link…"
         value={url}
         onChange={(e) => onChange(anchor.id, e.target.value)}
-        className="w-full border-[1.5px] border-text-primary bg-surface-page px-3 py-2 font-mono text-xs text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-none"
+        className="w-full border-[1.5px] border-text-primary bg-surface-page px-3 py-2 font-mono text-xs text-text-primary transition-colors placeholder:text-text-muted focus:border-brand-primary focus:outline-none"
       />
 
       {filled ? (
@@ -587,14 +614,12 @@ function AnchorCard({ anchor, url, onChange }) {
           href={url}
           target="_blank"
           rel="noreferrer noopener"
-          className="truncate font-mono text-[10px] uppercase tracking-wide text-brand-accent hover:text-brand-primary"
+          className="label-mark truncate text-[10px] text-brand-primary transition-colors hover:text-text-primary"
         >
           Open ↗
         </a>
       ) : (
-        <span className="font-mono text-[10px] uppercase tracking-wide text-text-muted">
-          Empty
-        </span>
+        <span className="label-mark text-[10px] text-text-muted">Empty</span>
       )}
     </div>
   );
@@ -609,21 +634,21 @@ function AnchorCard({ anchor, url, onChange }) {
  */
 function AnchorBoard({ links, onChange }) {
   return (
-    <section className="sticky top-0 z-30 mb-8 border-[1.5px] border-text-primary bg-surface-page">
-      <h2 className="border-b-[1.5px] border-text-primary bg-surface-card px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wide text-text-muted">
-        Final deliverables
-      </h2>
-      <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4">
-        {ANCHORS.map((anchor) => (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {ANCHORS.map((anchor, i) => (
+        <div
+          key={anchor.id}
+          className="animate-reveal-up"
+          style={{ animationDelay: `${i * 70}ms` }}
+        >
           <AnchorCard
-            key={anchor.id}
             anchor={anchor}
             url={links[anchor.id] ?? ''}
             onChange={onChange}
           />
-        ))}
-      </div>
-    </section>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -636,43 +661,38 @@ function AnchorBoard({ links, onChange }) {
  */
 function DriverStrip({ tasks }) {
   return (
-    <section className="mb-8 border-[1.5px] border-text-primary bg-surface-card">
-      <h2 className="border-b-[1.5px] border-text-primary px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wide text-text-muted">
-        Who's driving what
-      </h2>
-      <div className="grid grid-cols-1 divide-y-[1.5px] divide-text-primary md:grid-cols-3 md:divide-x-[1.5px] md:divide-y-0">
-        {TEAM.map((name) => {
-          const driving = tasks.filter(
-            (t) => t.assignee === name && t.status === 'in-progress',
-          );
-          const primary = driving[0];
-          const extra = driving.length - 1;
+    <div className="grid grid-cols-1 border-[1.5px] border-text-primary bg-surface-card divide-y-[1.5px] divide-text-primary md:grid-cols-3 md:divide-x-[1.5px] md:divide-y-0">
+      {TEAM.map((name) => {
+        const driving = tasks.filter(
+          (t) => t.assignee === name && t.status === 'in-progress',
+        );
+        const primary = driving[0];
+        const extra = driving.length - 1;
 
-          return (
-            <div key={name} className="flex items-center gap-3 p-4">
-              <Avatar name={name} size="lg" />
-              <div className="min-w-0">
-                <p className="font-mono text-xs font-medium uppercase tracking-wide text-text-primary">
-                  {name}
+        return (
+          <div key={name} className="flex items-center gap-4 p-5">
+            <Avatar name={name} size="lg" />
+            <div className="min-w-0">
+              <p className="label-mark text-[11px] font-medium text-text-primary">
+                {name}
+              </p>
+              {primary ? (
+                <p className="mt-0.5 truncate text-sm text-text-secondary">
+                  {primary.title}
+                  {extra > 0 ? (
+                    <span className="label-mark text-[10px] text-brand-primary"> +{extra} more</span>
+                  ) : null}
                 </p>
-                {primary ? (
-                  <p className="truncate text-sm text-text-muted">
-                    {primary.title}
-                    {extra > 0 ? (
-                      <span className="font-mono text-xs"> +{extra} more</span>
-                    ) : null}
-                  </p>
-                ) : (
-                  <p className="font-mono text-xs uppercase tracking-wide text-text-muted">
-                    Not driving anything
-                  </p>
-                )}
-              </div>
+              ) : (
+                <p className="label-mark mt-0.5 text-[10px] text-text-muted">
+                  Not driving anything
+                </p>
+              )}
             </div>
-          );
-        })}
-      </div>
-    </section>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -701,13 +721,196 @@ function Toast({ message, onDone }) {
       <div
         role="status"
         aria-live="polite"
-        className={`border-[1.5px] border-text-primary bg-text-primary px-4 py-2 font-mono text-xs uppercase tracking-wide text-surface-page transition-opacity duration-200 ${
-          shown ? 'opacity-100' : 'opacity-0'
+        className={`label-mark flex items-center gap-2 border-[1.5px] border-text-primary bg-text-primary px-4 py-2.5 text-xs text-surface-page shadow-offset-sm transition-all duration-200 ease-out ${
+          shown ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
         }`}
       >
+        <span aria-hidden="true" className="h-2 w-2 bg-accent-red" />
         {message}
       </div>
     </div>
+  );
+}
+
+/**
+ * Numbered editorial section marker — mono index, condensed-grotesque title, an
+ * optional bilingual JP echo, and a hairline rule that runs to the page edge.
+ * Typography *is* the layout: this is the recurring structural device.
+ *
+ * @param {{ index: string, title: string, jp?: string, action?: import('react').ReactNode }} props
+ */
+function SectionLabel({ index, title, jp, action }) {
+  return (
+    <div className="mb-6 flex items-end justify-between gap-4">
+      <div className="flex min-w-0 items-end gap-4">
+        <span className="label-mark shrink-0 text-[11px] text-brand-primary">§{index}</span>
+        <h2 className="flex items-baseline gap-3 font-display text-3xl font-medium uppercase leading-none tracking-tight text-text-primary sm:text-4xl">
+          {title}
+          {jp ? (
+            <span className="font-jp text-lg font-medium tracking-normal text-text-muted">
+              {jp}
+            </span>
+          ) : null}
+        </h2>
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * Concentric-ring motif (DESIGN §7) — quiet background texture behind the
+ * masthead. Pure SVG, no blur, never competes with the type.
+ */
+function ConcentricRings({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 400 400"
+      fill="none"
+      aria-hidden="true"
+      preserveAspectRatio="xMidYMid meet"
+    >
+      {[40, 80, 120, 160, 196].map((r) => (
+        <circle
+          key={r}
+          cx="200"
+          cy="200"
+          r={r}
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+      ))}
+    </svg>
+  );
+}
+
+/**
+ * The editorial spine — a thin navy utility bar that runs the full width above
+ * the masthead. Inverse mono metadata: wordmark ©, a Tokyo–Berlin axis, and a
+ * live task count. The single place deep navy appears in the chrome.
+ *
+ * @param {{ count: number }} props
+ */
+function UtilitySpine({ count }) {
+  return (
+    <div className="w-full border-b-[1.5px] border-text-primary bg-surface-navy text-text-inverse">
+      <div className="mx-auto flex max-w-editorial items-center justify-between gap-4 px-6 py-2 md:px-10 xl:px-16">
+        <span className="label-mark text-[10px] text-text-inverse/80">
+          Okinawa Pop © 2026
+        </span>
+        <span className="label-mark hidden text-[10px] text-brand-accent sm:inline">
+          Tokyo — Berlin
+        </span>
+        <span className="label-mark text-[10px] text-text-inverse/80">
+          Tasks · {String(count).padStart(2, '0')}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The masthead — overscaled wordmark on the off-white canvas with a single
+ * Japan-Red punctuation dot, a bilingual JP echo, the tagline, and the primary
+ * "+ Task" action. Full-bleed type; the layout breathes around it.
+ *
+ * @param {{ onAdd: () => void, stats: { total: number, active: number, done: number } }} props
+ */
+function Masthead({ onAdd, stats }) {
+  return (
+    <header className="relative overflow-hidden border-b-[1.5px] border-text-primary">
+      <ConcentricRings className="pointer-events-none absolute -right-16 -top-20 h-[420px] w-[420px] text-brand-accent/25 sm:-right-8" />
+
+      <div className="relative mx-auto max-w-editorial px-6 py-12 md:px-10 md:py-16 xl:px-16">
+        <div className="flex items-center justify-between gap-4">
+          <span className="label-mark text-[11px] text-text-muted">
+            Vibecoding Project Tracker
+          </span>
+          <span className="label-mark hidden text-[11px] text-text-muted md:inline">
+            23–07–A / Active
+          </span>
+        </div>
+
+        <div className="mt-6 animate-reveal-left">
+          <h1 className="font-heading text-hero font-black uppercase text-text-primary">
+            Okinawa
+            <span className="text-brand-primary">
+              {' '}Pop
+              <span className="text-accent-red">.</span>
+            </span>
+          </h1>
+          <p className="mt-2 font-jp text-2xl font-medium text-text-secondary sm:text-3xl">
+            沖縄ポップ
+            <span className="label-mark ml-3 align-middle text-xs text-text-muted">
+              Editorial Studio
+            </span>
+          </p>
+        </div>
+
+        <div className="mt-8 flex flex-wrap items-end justify-between gap-6 animate-reveal-up">
+          <p className="max-w-md text-base leading-relaxed text-text-secondary">
+            Track every vibecoding task and the prompt context that produced it —
+            calm but charged, with always one red moment.
+          </p>
+
+          <div className="flex items-center gap-6">
+            <dl className="hidden items-center gap-6 sm:flex">
+              {[
+                { k: 'Total', v: stats.total },
+                { k: 'Active', v: stats.active },
+                { k: 'Done', v: stats.done },
+              ].map((s) => (
+                <div key={s.k} className="text-right">
+                  <dd className="font-display text-3xl font-semibold leading-none tracking-tight text-text-primary">
+                    {String(s.v).padStart(2, '0')}
+                  </dd>
+                  <dt className="label-mark mt-1 text-[10px] text-text-muted">{s.k}</dt>
+                </div>
+              ))}
+            </dl>
+            <Button variant="primary" onClick={onAdd} className="px-6 py-3 text-sm">
+              + Task
+            </Button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/**
+ * Editorial footer — a barcode-style rule, the manifesto line, and a quiet
+ * coordinate stamp. Closes the page like the back of a zine.
+ */
+function Footer() {
+  return (
+    <footer className="mt-24 border-t-[1.5px] border-text-primary bg-surface-navy text-text-inverse">
+      <div className="mx-auto flex max-w-editorial flex-col gap-6 px-6 py-10 md:flex-row md:items-center md:justify-between md:px-10 xl:px-16">
+        <div>
+          <p className="font-display text-2xl font-medium uppercase tracking-tight">
+            Typography is structure
+            <span className="text-accent-red">.</span>
+          </p>
+          <p className="label-mark mt-2 text-[10px] text-text-inverse/60">
+            Okinawa Pop · Neo-Japanese Editorial · v2
+          </p>
+        </div>
+        <div
+          aria-hidden="true"
+          className="flex h-10 items-end gap-[3px]"
+          title="barcode"
+        >
+          {[3, 1, 2, 1, 4, 1, 1, 3, 2, 1, 1, 2, 4, 1, 2, 1, 3, 1].map((w, i) => (
+            <span
+              key={i}
+              className="h-full bg-text-inverse/80"
+              style={{ width: `${w}px` }}
+            />
+          ))}
+        </div>
+      </div>
+    </footer>
   );
 }
 
@@ -774,36 +977,65 @@ export default function App() {
     closeModal();
   };
 
+  const stats = {
+    total: tasks.length,
+    active: tasks.filter((t) => t.status !== 'done').length,
+    done: tasks.filter((t) => t.status === 'done').length,
+  };
+
   return (
-    <div className="min-h-screen bg-surface-page p-6">
-      <header className="mb-8 flex items-end justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold uppercase tracking-wide text-brand-primary">
-            Okinawa Pop
-          </h1>
-          <p className="mt-1 text-sm text-text-muted">Project tracker</p>
-        </div>
-        <Button variant="primary" onClick={openNew}>
-          + Task
-        </Button>
-      </header>
+    <div className="min-h-screen bg-surface-page">
+      <UtilitySpine count={stats.total} />
+      <Masthead onAdd={openNew} stats={stats} />
 
-      <AnchorBoard links={anchorLinks} onChange={setAnchorLink} />
-
-      <DriverStrip tasks={tasks} />
-
-      <main className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {STAGES.map((stage) => (
-          <KanbanColumn
-            key={stage.id}
-            stage={stage}
-            tasks={tasks.filter((task) => task.status === stage.id)}
-            onOpen={openEdit}
-            onReassign={reassignTask}
-            onCopyContext={copyTaskContext}
+      <div className="mx-auto max-w-editorial px-6 md:px-10 xl:px-16">
+        <section className="sticky-band -mx-6 mb-16 border-b-[1.5px] border-text-primary bg-surface-page px-6 pb-6 pt-6 md:-mx-10 md:px-10 xl:-mx-16 xl:px-16">
+          <SectionLabel
+            index="01"
+            title="Final Deliverables"
+            jp="成果物"
+            action={
+              <span className="label-mark hidden text-[10px] text-text-muted sm:inline">
+                Pinned
+              </span>
+            }
           />
-        ))}
-      </main>
+          <AnchorBoard links={anchorLinks} onChange={setAnchorLink} />
+        </section>
+
+        <section className="mb-16">
+          <SectionLabel index="02" title="Who's Driving" jp="担当" />
+          <DriverStrip tasks={tasks} />
+        </section>
+
+        <section>
+          <SectionLabel
+            index="03"
+            title="The Board"
+            jp="進行"
+            action={
+              <Button variant="secondary" onClick={openNew} className="hidden sm:inline-flex">
+                + Task
+              </Button>
+            }
+          />
+          <main className="grid grid-cols-1 gap-x-6 gap-y-10 md:grid-cols-2 xl:grid-cols-4">
+            {STAGES.map((stage, index) => (
+              <KanbanColumn
+                key={stage.id}
+                stage={stage}
+                index={index}
+                tasks={tasks.filter((task) => task.status === stage.id)}
+                onOpen={openEdit}
+                onReassign={reassignTask}
+                onCopyContext={copyTaskContext}
+              />
+            ))}
+          </main>
+        </section>
+      </div>
+
+      <Footer />
 
       <TaskModal
         task={draft}

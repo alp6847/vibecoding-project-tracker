@@ -6,8 +6,73 @@ html, body, #root {
   height: 100%;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: theme('fontFamily.body');
   background-color: theme('colors.surface.page');
   color: theme('colors.text.primary');
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Editorial selection — electric blue on ink. */
+::selection {
+  background-color: theme('colors.brand.primary');
+  color: theme('colors.surface.page');
+}
+
+/* Pinned editorial band — explicit sticky so it survives any utility-layer
+   quirks. Stays at the top of the viewport as the board scrolls beneath it. */
+.sticky-band {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+@layer utilities {
+  /* Mono uppercase tracked section marker per DESIGN §3. */
+  .label-mark {
+    font-family: theme('fontFamily.mono');
+    text-transform: uppercase;
+    letter-spacing: theme('letterSpacing.label');
+  }
+
+  /* Tategumi — vertical Japanese-style stacked label. */
+  .vertical-rl {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+}
+
+/* Native select chevron tuned to the editorial palette. */
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230D0D0D' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding-right: 1.75rem;
+}
+
+/* Motion is structural, not decorative — honor reduced-motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .hover-lift:hover {
+    transform: none !important;
+  }
 }

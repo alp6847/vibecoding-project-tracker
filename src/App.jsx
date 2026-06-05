@@ -1,11 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { getTaskTypeMeta } from './taskType';
+import { TaskTypeAccent, TaskTypeLabel } from './TaskTypeAccent';
 
 /**
  * Vibecoding Project Tracker — Okinawa Pop.
  *
  * M4 data-model : four columns + task cards (done).
  * M5 crud-modal : "+" add modal, click-to-edit modal, delete, status dropdown,
- *                 everything persisted to localStorage. (this file)
+ *                 everything persisted to localStorage. (done)
+ * M6 tag-style  : per-type accent colour + corner icon, applied on the board,
+ *                 in the modal, and on every type label. (this file)
  */
 
 /**
@@ -126,233 +130,57 @@ const SEED_TASKS = [
 ];
 
 /**
- * A solid, sharp-edged button per DESIGN.md §4 — inverts to ink-black on hover.
+ * Sharp-edged, mono-uppercase button per DESIGN.md §4 — inverts to ink on hover.
+ *
+ * @param {{ variant?: 'primary'|'secondary'|'danger' } & import('react').ButtonHTMLAttributes<HTMLButtonElement>} props
  */
 function Button({ variant = 'primary', className = '', ...props }) {
   const base =
-    'inline-flex items-center justify-center border-[1.5px] border-text-primary px-4 py-2 font-mono text-xs font-medium uppercase tracking-wider transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface-card disabled:opacity-40';
+    'inline-flex items-center justify-center border-[1.5px] px-4 py-2 font-mono text-xs font-medium uppercase tracking-wide transition-colors';
   const variants = {
     primary:
-      'bg-brand-primary text-white hover:bg-text-primary hover:text-white',
-    ghost:
-      'bg-transparent text-text-primary hover:bg-text-primary hover:text-white',
+      'border-brand-primary bg-brand-primary text-surface-page hover:border-text-primary hover:bg-text-primary',
+    secondary:
+      'border-text-primary bg-transparent text-text-primary hover:bg-text-primary hover:text-surface-page',
     danger:
-      'bg-type-bug text-white hover:bg-text-primary hover:text-white',
+      'border-type-bug bg-transparent text-type-bug hover:bg-type-bug hover:text-surface-page',
   };
   return (
-    <button className={`${base} ${variants[variant]} ${className}`} {...props} />
+    <button
+      type="button"
+      className={`${base} ${variants[variant] ?? variants.primary} ${className}`}
+      {...props}
+    />
   );
 }
 
-/** Shared input styling — flat, sharp-edged, ink border. */
-const fieldClass =
-  'w-full border-[1.5px] border-text-primary bg-white px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary';
-
-const labelClass =
-  'mb-1 block font-mono text-[11px] font-medium uppercase tracking-wider text-text-muted';
-
 /**
- * The add / edit modal. Renders every editable Task field, including a
- * status dropdown (no drag-and-drop). One component covers both modes:
- * `draft.id == null` → create, otherwise → edit.
+ * A board card. The type accent (left stripe + corner icon) and the mono type
+ * label both come from the shared `type-feature` / `type-bug` scheme so a card
+ * reads the same here as it does in the modal.
  *
- * @param {{
- *   draft: Task,
- *   onSave: (task: Task) => void,
- *   onClose: () => void,
- *   onDelete: (id: string) => void,
- * }} props
+ * @param {{ task: Task, onOpen: (task: Task) => void }} props
  */
-function TaskModal({ draft, onSave, onClose, onDelete }) {
-  const [form, setForm] = useState(draft);
-  const titleRef = useRef(null);
-  const isEditing = draft.id != null;
-
-  useEffect(() => {
-    titleRef.current?.focus();
-  }, []);
-
-  // Close on Escape.
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const title = form.title.trim();
-    if (!title) {
-      titleRef.current?.focus();
-      return;
-    }
-    onSave({
-      ...form,
-      title,
-      description: form.description.trim(),
-      dueDate: form.dueDate || null,
-    });
-  };
-
+function TaskCard({ task, onOpen }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-surface-backdrop/50 p-4"
-      onMouseDown={onClose}
-      role="presentation"
+    <TaskTypeAccent
+      type={task.type}
+      onClick={() => onOpen(task)}
+      className="p-3 transition-colors hover:bg-brand-accent/10"
     >
-      <div
-        className="w-full max-w-md border-[1.5px] border-text-primary bg-surface-card"
-        onMouseDown={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label={isEditing ? 'Edit task' : 'New task'}
-      >
-        <div className="flex items-center justify-between border-b-[1.5px] border-text-primary px-5 py-3">
-          <h2 className="font-heading text-lg font-semibold uppercase tracking-wide text-text-primary">
-            {isEditing ? 'Edit Task' : 'New Task'}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="font-mono text-lg leading-none text-text-muted hover:text-text-primary"
-          >
-            ×
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
-          <div>
-            <label className={labelClass} htmlFor="task-title">Title</label>
-            <input
-              id="task-title"
-              ref={titleRef}
-              className={fieldClass}
-              value={form.title}
-              onChange={set('title')}
-              placeholder="What needs doing?"
-            />
-          </div>
-
-          <div>
-            <label className={labelClass} htmlFor="task-desc">Description</label>
-            <textarea
-              id="task-desc"
-              className={`${fieldClass} resize-none`}
-              rows={3}
-              value={form.description}
-              onChange={set('description')}
-              placeholder="Add detail, links, acceptance criteria…"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass} htmlFor="task-type">Type</label>
-              <select id="task-type" className={fieldClass} value={form.type} onChange={set('type')}>
-                {TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass} htmlFor="task-status">Status</label>
-              <select id="task-status" className={fieldClass} value={form.status} onChange={set('status')}>
-                {STAGES.map((s) => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass} htmlFor="task-assignee">Assignee</label>
-              <select id="task-assignee" className={fieldClass} value={form.assignee} onChange={set('assignee')}>
-                {TEAM.map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass} htmlFor="task-due">Due date</label>
-              <input
-                id="task-due"
-                type="date"
-                className={fieldClass}
-                value={form.dueDate ?? ''}
-                onChange={set('dueDate')}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 border-t-[1.5px] border-text-primary pt-4">
-            {isEditing ? (
-              <Button type="button" variant="danger" onClick={() => onDelete(form.id)}>
-                Delete
-              </Button>
-            ) : (
-              <span />
-            )}
-            <div className="flex gap-3">
-              <Button type="button" variant="ghost" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary">
-                {isEditing ? 'Save' : 'Create'}
-              </Button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+      <TaskTypeLabel type={task.type} />
+      <h3 className="mt-2 text-sm font-medium text-text-primary">{task.title}</h3>
+      <p className="mt-2 font-mono text-xs uppercase tracking-wide text-text-muted">
+        {task.assignee}
+      </p>
+    </TaskTypeAccent>
   );
 }
 
 /**
- * @param {{ task: Task, onClick: () => void }} props
+ * @param {{ stage: typeof STAGES[number], tasks: Task[], onOpen: (task: Task) => void }} props
  */
-function TaskCard({ task, onClick }) {
-  const stripe = task.type === 'bug' ? 'bg-type-bug' : 'bg-type-feature';
-  return (
-    <article
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      className="flex cursor-pointer border-[1.5px] border-text-primary bg-surface-card transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary"
-    >
-      <span className={`w-1.5 shrink-0 ${stripe}`} aria-hidden="true" />
-      <div className="min-w-0 flex-1 p-3">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-medium text-text-primary">{task.title}</h3>
-          <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-text-muted">
-            {task.type}
-          </span>
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <p className="font-mono text-xs uppercase tracking-wide text-text-muted">
-            {task.assignee}
-          </p>
-          {task.dueDate && (
-            <p className="font-mono text-xs text-text-muted">{task.dueDate}</p>
-          )}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-/**
- * @param {{ stage: typeof STAGES[number], tasks: Task[], onCardClick: (task: Task) => void }} props
- */
-function KanbanColumn({ stage, tasks, onCardClick }) {
+function KanbanColumn({ stage, tasks, onOpen }) {
   return (
     <section className="flex min-w-0 flex-1 flex-col">
       <h2 className="mb-3 flex items-center justify-between font-heading text-base font-semibold uppercase tracking-wide text-text-primary">
@@ -368,11 +196,176 @@ function KanbanColumn({ stage, tasks, onCardClick }) {
           </div>
         ) : (
           tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onClick={() => onCardClick(task)} />
+            <TaskCard key={task.id} task={task} onOpen={onOpen} />
           ))
         )}
       </div>
     </section>
+  );
+}
+
+/** Shared field styling — sharp ink-bordered inputs per DESIGN.md §4. */
+const FIELD_CLASS =
+  'mt-1 w-full border-[1.5px] border-text-primary bg-surface-page px-3 py-2 text-sm text-text-primary focus:border-brand-primary focus:outline-none';
+const LABEL_CLASS =
+  'font-mono text-xs uppercase tracking-wide text-text-muted';
+
+/**
+ * Create/edit task modal. The panel reuses the same type color scheme as the
+ * board (left accent stripe + corner icon via TaskTypeAccent, mono label via
+ * TaskTypeLabel) and the accent updates live as you switch the type select.
+ *
+ * @param {{
+ *   task: Task | null,
+ *   onClose: () => void,
+ *   onSave: (task: Task) => void,
+ *   onDelete: (id: string) => void,
+ * }} props
+ */
+function TaskModal({ task, onClose, onSave, onDelete }) {
+  const [form, setForm] = useState(task);
+
+  useEffect(() => setForm(task), [task]);
+
+  useEffect(() => {
+    if (!task) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [task, onClose]);
+
+  if (!task || !form) return null;
+
+  const meta = getTaskTypeMeta(form.type);
+  const isExisting = Boolean(task.id);
+  const update = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.title.trim()) return;
+    onSave({ ...form, dueDate: form.dueDate || null });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ backgroundColor: 'rgba(0, 16, 64, 0.5)' }}
+      onClick={onClose}
+    >
+      <TaskTypeAccent type={form.type} className="w-full max-w-md p-5">
+        <form onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+          <div className="flex items-start justify-between gap-3">
+            <TaskTypeLabel type={form.type} />
+            <button
+              type="button"
+              onClick={onClose}
+              className="font-mono text-xs uppercase tracking-wide text-text-muted hover:text-text-primary"
+            >
+              Close
+            </button>
+          </div>
+
+          <h2 className={`mt-3 font-heading text-xl font-semibold ${meta.textClass}`}>
+            {isExisting ? 'Edit task' : 'New task'}
+          </h2>
+
+          <div className="mt-4 space-y-4">
+            <label className="block">
+              <span className={LABEL_CLASS}>Title</span>
+              <input
+                className={FIELD_CLASS}
+                value={form.title}
+                onChange={(e) => update({ title: e.target.value })}
+                placeholder="What needs doing?"
+                autoFocus
+              />
+            </label>
+
+            <label className="block">
+              <span className={LABEL_CLASS}>Description</span>
+              <textarea
+                className={FIELD_CLASS}
+                rows={3}
+                value={form.description}
+                onChange={(e) => update({ description: e.target.value })}
+              />
+            </label>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className={LABEL_CLASS}>Type</span>
+                <select
+                  className={FIELD_CLASS}
+                  value={form.type}
+                  onChange={(e) => update({ type: e.target.value })}
+                >
+                  {TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {getTaskTypeMeta(t).label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className={LABEL_CLASS}>Status</span>
+                <select
+                  className={FIELD_CLASS}
+                  value={form.status}
+                  onChange={(e) => update({ status: e.target.value })}
+                >
+                  {STAGES.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className={LABEL_CLASS}>Assignee</span>
+                <select
+                  className={FIELD_CLASS}
+                  value={form.assignee}
+                  onChange={(e) => update({ assignee: e.target.value })}
+                >
+                  {TEAM.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className={LABEL_CLASS}>Due</span>
+                <input
+                  type="date"
+                  className={FIELD_CLASS}
+                  value={form.dueDate ?? ''}
+                  onChange={(e) => update({ dueDate: e.target.value })}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-6 flex items-center justify-between gap-3">
+            {isExisting ? (
+              <Button variant="danger" onClick={() => onDelete(task.id)}>
+                Delete
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Button variant="primary" type="submit">
+              {isExisting ? 'Save' : 'Add task'}
+            </Button>
+          </div>
+        </form>
+      </TaskTypeAccent>
+    </div>
   );
 }
 
@@ -429,19 +422,17 @@ export default function App() {
             key={stage.id}
             stage={stage}
             tasks={tasks.filter((task) => task.status === stage.id)}
-            onCardClick={openEdit}
+            onOpen={openEdit}
           />
         ))}
       </main>
 
-      {draft && (
-        <TaskModal
-          draft={draft}
-          onSave={saveTask}
-          onClose={closeModal}
-          onDelete={deleteTask}
-        />
-      )}
+      <TaskModal
+        task={draft}
+        onClose={closeModal}
+        onSave={saveTask}
+        onDelete={deleteTask}
+      />
     </div>
   );
 }

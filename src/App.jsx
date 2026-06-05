@@ -193,6 +193,273 @@ Layout is shipped. Next milestone wires the [CRUD modal](https://example.com).`,
     contextTool: null,
     contextUpdatedAt: null,
   },
+
+  // To Do
+  {
+    id: 'task-5',
+    title: 'Implement recurring task support',
+    description: 'Let tasks repeat on a daily / weekly / monthly cadence.',
+    type: 'feature',
+    status: 'todo',
+    assignee: 'Alex',
+    dueDate: '2026-06-12',
+    createdDate: '2026-06-05',
+    context: `## Goal
+Tasks should be able to **repeat** without re-typing them each cycle.
+
+## Open questions
+- Where does the recurrence rule live — on the task or a separate \`schedule\`?
+- Do we spawn the next instance on \`done\`, or on a timer?
+
+## Sketch
+\`\`\`js
+recurrence: { every: 'week', interval: 1, until: null }
+\`\`\`
+
+## Pick up
+Start with weekly only; generalize once the [RRULE shape](https://example.com) feels right.`,
+    contextTool: 'Cursor',
+    contextUpdatedAt: '2026-06-05T08:40:00.000Z',
+  },
+  {
+    id: 'task-6',
+    title: 'Create onboarding checklist',
+    description: 'First-run checklist that walks new users through the board.',
+    type: 'feature',
+    status: 'todo',
+    assignee: 'Franzi',
+    dueDate: '2026-06-13',
+    createdDate: '2026-06-05',
+    context: `## Why
+New teammates land on an empty board and bounce. A short checklist gives them a
+first win.
+
+## Steps to cover
+1. Add your first task
+2. Hand it off to a teammate
+3. Drag it to **In Progress**
+4. Paste a prompt context
+
+> Keep it dismissible — power users should never see it twice.`,
+    contextTool: 'Claude',
+    contextUpdatedAt: '2026-06-05T09:05:00.000Z',
+  },
+  {
+    id: 'task-7',
+    title: 'Add dark mode toggle',
+    description: 'Respect system preference, allow a manual override.',
+    type: 'feature',
+    status: 'todo',
+    assignee: 'Eva',
+    dueDate: '2026-06-15',
+    createdDate: '2026-06-05',
+    context: `## Scope
+A single toggle in the masthead that flips the theme and remembers the choice.
+
+## Constraints
+- Default to \`prefers-color-scheme\`.
+- Persist the override in \`localStorage\`.
+- The *one red moment* must survive in both themes.`,
+    contextTool: null,
+    contextUpdatedAt: null,
+  },
+
+  // In Progress
+  {
+    id: 'task-8',
+    title: 'Fix drag & drop on touch devices',
+    description: 'Cards refuse to pick up on iOS Safari and Android Chrome.',
+    type: 'bug',
+    status: 'in-progress',
+    assignee: 'Eva',
+    dueDate: '2026-06-03',
+    createdDate: '2026-06-01',
+    context: `## Repro
+1. Open the board on a phone.
+2. Long-press a card.
+3. Nothing drags — the page scrolls instead.
+
+## Suspect
+Native HTML5 drag events don't fire on touch. We likely need a
+\`pointerdown\` → \`pointermove\` fallback.
+
+## Tried so far
+- \`touch-action: none\` on the card — helped scrolling, didn't enable drag.
+
+## Pick up
+Prototype a pointer-based drag and gate it behind \`@media (pointer: coarse)\`.`,
+    contextTool: 'Cursor',
+    contextUpdatedAt: '2026-06-04T14:20:00.000Z',
+  },
+  {
+    id: 'task-9',
+    title: 'Optimize board loading performance',
+    description: 'Initial render janks once the board passes ~50 cards.',
+    type: 'feature',
+    status: 'in-progress',
+    assignee: 'Alex',
+    dueDate: '2026-06-08',
+    createdDate: '2026-06-02',
+    context: `## Symptom
+First paint is fine; the **reveal-up** animation stutters with many cards.
+
+## Hypotheses
+- Re-filtering \`tasks\` per column on every render.
+- Staggered animation delays compounding.
+
+## Measurements
+| cards | first paint |
+| ----- | ----------- |
+| 12    | ~40ms       |
+| 60    | ~210ms      |
+
+Memoize the per-column filter before reaching for virtualization.`,
+    contextTool: 'ChatGPT',
+    contextUpdatedAt: '2026-06-04T11:00:00.000Z',
+  },
+  {
+    id: 'task-10',
+    title: 'Implement keyboard shortcuts',
+    description: 'Add quick keys: n = new task, / = search, esc = close.',
+    type: 'feature',
+    status: 'in-progress',
+    assignee: 'Franzi',
+    dueDate: '2026-06-11',
+    createdDate: '2026-06-03',
+    context: `## Shortcuts
+- \`n\` — new task
+- \`/\` — focus search
+- \`esc\` — close any modal
+
+## Watch out
+Don't hijack keys while an \`input\` or \`textarea\` is focused.`,
+    contextTool: null,
+    contextUpdatedAt: null,
+  },
+
+  // Review
+  {
+    id: 'task-11',
+    title: 'Notification center redesign',
+    description: 'Group notifications by task and collapse the noisy ones.',
+    type: 'feature',
+    status: 'review',
+    assignee: 'Franzi',
+    dueDate: '2026-06-06',
+    createdDate: '2026-06-02',
+    context: `## Status
+Ready for review — happy path works end to end.
+
+## Review notes
+- Empty state copy still says *"No notifications yet."* — fine?
+- Grouping uses \`taskId\`; orphaned notifications fall into **Other**.
+
+## Follow-ups (not blocking)
+- Animated unread badge.`,
+    contextTool: 'Claude',
+    contextUpdatedAt: '2026-06-05T07:15:00.000Z',
+  },
+  {
+    id: 'task-12',
+    title: 'User avatar upload flow',
+    description: 'Crop, preview, and store a square avatar per teammate.',
+    type: 'feature',
+    status: 'review',
+    assignee: 'Eva',
+    dueDate: '2026-06-07',
+    createdDate: '2026-06-03',
+    context: `## Flow
+\`pick → crop → preview → save\`
+
+## Done
+- Drag-to-reposition crop box.
+- Falls back to the initials avatar when no image is set.
+
+## Question for review
+Do we downscale client-side or trust the backend? Leaning client-side to keep
+uploads small.`,
+    contextTool: 'Cursor',
+    contextUpdatedAt: '2026-06-05T06:50:00.000Z',
+  },
+  {
+    id: 'task-13',
+    title: 'Task filtering by labels',
+    description: 'Filter the board by one or more labels with an AND match.',
+    type: 'feature',
+    status: 'review',
+    assignee: 'Alex',
+    dueDate: '2026-06-09',
+    createdDate: '2026-06-04',
+    context: `## Behavior
+Selecting labels narrows every column at once; clearing them restores the full
+board.
+
+- [x] Multi-select chips
+- [x] AND matching
+- [ ] Persist the active filter across reloads
+
+Last item is intentionally deferred — flag it in review.`,
+    contextTool: null,
+    contextUpdatedAt: null,
+  },
+
+  // Done
+  {
+    id: 'task-14',
+    title: 'Set up authentication system',
+    description: 'Email + password auth with session persistence.',
+    type: 'feature',
+    status: 'done',
+    assignee: 'Alex',
+    dueDate: '2026-06-02',
+    createdDate: '2026-05-28',
+    context: `## Shipped
+Sessions persist across reloads and expire after 7 days.
+
+## Notes
+- Passwords hashed with \`bcrypt\`.
+- Logout clears the token everywhere.
+
+Closed out — see the [auth doc](https://example.com) for the threat model.`,
+    contextTool: 'ChatGPT',
+    contextUpdatedAt: '2026-06-02T16:30:00.000Z',
+  },
+  {
+    id: 'task-15',
+    title: 'Create responsive navigation',
+    description: 'Collapses to a single rail under the editorial breakpoint.',
+    type: 'feature',
+    status: 'done',
+    assignee: 'Franzi',
+    dueDate: '2026-06-01',
+    createdDate: '2026-05-27',
+    context: `## Done
+Nav collapses cleanly and traps focus while open.
+
+> Kept it CSS-first — no JS needed below the breakpoint.`,
+    contextTool: 'Cursor',
+    contextUpdatedAt: '2026-06-01T10:10:00.000Z',
+  },
+  {
+    id: 'task-16',
+    title: 'Build activity timeline component',
+    description: 'Chronological feed of task events with relative timestamps.',
+    type: 'feature',
+    status: 'done',
+    assignee: 'Eva',
+    dueDate: '2026-06-04',
+    createdDate: '2026-05-29',
+    context: `## Result
+A vertical timeline that reads newest → oldest.
+
+## Highlights
+- Relative times (\`2h ago\`) that refresh on focus.
+- Events: \`created\`, \`moved\`, \`handed off\`, \`done\`.
+
+Shipped and stable.`,
+    contextTool: 'Claude',
+    contextUpdatedAt: '2026-06-04T18:45:00.000Z',
+  },
 ];
 
 /**

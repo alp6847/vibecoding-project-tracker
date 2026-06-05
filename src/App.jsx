@@ -63,6 +63,21 @@ export const TEAM = ['Alex', 'Eva', 'Franzi'];
 // The two task types from PRD §5 / DESIGN.md §2.
 export const TYPES = ['feature', 'bug'];
 
+// M11 anchors — the four pinned final-project deliverables (PRD §3 / §5).
+// Use these IDs everywhere — do not invent new ones.
+export const ANCHORS = [
+  { id: 'presentation',  label: 'Presentation' },
+  { id: 'demo',          label: 'Demo' },
+  { id: 'report',        label: 'Report' },
+  { id: 'documentation', label: 'Documentation' },
+];
+
+// The empty anchor map: { presentation: '', demo: '', … } — every slot starts
+// linkless so the status dots all read "empty" until the team drops a URL in.
+const EMPTY_ANCHOR_LINKS = Object.fromEntries(
+  ANCHORS.map((anchor) => [anchor.id, '']),
+);
+
 /**
  * A tiny localStorage hook — survives reloads, no library needed.
  *
@@ -525,6 +540,94 @@ function TaskModal({ task, onClose, onSave, onDelete, onCopyContext }) {
 }
 
 /**
+ * A single deliverable slot in the Anchor Board (M11). One URL field plus a
+ * status dot: a hollow ink ring while empty, a solid brand-primary fill the
+ * moment a link is present. The dot is derived live from the URL, so it flips
+ * as you type and stays correct across reloads.
+ *
+ * @param {{ anchor: typeof ANCHORS[number], url: string, onChange: (id: string, url: string) => void }} props
+ */
+function AnchorCard({ anchor, url, onChange }) {
+  const filled = url.trim().length > 0;
+  const inputId = `anchor-${anchor.id}`;
+
+  return (
+    <div className="flex min-w-0 flex-col gap-3 border-[1.5px] border-text-primary bg-surface-card p-4">
+      <div className="flex items-center justify-between gap-2">
+        <label
+          htmlFor={inputId}
+          className="font-mono text-xs font-medium uppercase tracking-wide text-text-primary"
+        >
+          {anchor.label}
+        </label>
+        <span
+          aria-hidden="true"
+          title={filled ? 'Link added' : 'No link yet'}
+          className={`h-3 w-3 shrink-0 rounded-full border-[1.5px] border-text-primary transition-colors ${
+            filled ? 'bg-brand-primary' : 'bg-transparent'
+          }`}
+        />
+        <span className="sr-only">
+          {filled ? `${anchor.label} link added` : `${anchor.label} has no link yet`}
+        </span>
+      </div>
+
+      <input
+        id={inputId}
+        type="url"
+        inputMode="url"
+        placeholder="Paste a link…"
+        value={url}
+        onChange={(e) => onChange(anchor.id, e.target.value)}
+        className="w-full border-[1.5px] border-text-primary bg-surface-page px-3 py-2 font-mono text-xs text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-none"
+      />
+
+      {filled ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="truncate font-mono text-[10px] uppercase tracking-wide text-brand-accent hover:text-brand-primary"
+        >
+          Open ↗
+        </a>
+      ) : (
+        <span className="font-mono text-[10px] uppercase tracking-wide text-text-muted">
+          Empty
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The Anchor Board (M11) — a pinned top banner that homes the four final-project
+ * deliverables (PRD §3). Always visible above the Kanban board; each slot saves
+ * its URL to localStorage so links survive a reload.
+ *
+ * @param {{ links: Record<string, string>, onChange: (id: string, url: string) => void }} props
+ */
+function AnchorBoard({ links, onChange }) {
+  return (
+    <section className="sticky top-0 z-30 mb-8 border-[1.5px] border-text-primary bg-surface-page">
+      <h2 className="border-b-[1.5px] border-text-primary bg-surface-card px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wide text-text-muted">
+        Final deliverables
+      </h2>
+      <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4">
+        {ANCHORS.map((anchor) => (
+          <AnchorCard
+            key={anchor.id}
+            anchor={anchor}
+            url={links[anchor.id] ?? ''}
+            onChange={onChange}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
  * Top strip: who is currently driving what. "Driving" = the teammate's
  * In Progress tasks. Gives the team a one-glance answer to "who's on what right
  * now?" and updates live as tasks are handed off or moved across columns.
@@ -611,6 +714,16 @@ function Toast({ message, onDone }) {
 export default function App() {
   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', SEED_TASKS);
 
+  // M11 anchors — the four deliverable links, keyed by anchor id. Persisted on
+  // its own key so the Anchor Board survives a reload independently of tasks.
+  const [anchorLinks, setAnchorLinks] = useLocalStorage(
+    'vibetracker.anchors',
+    EMPTY_ANCHOR_LINKS,
+  );
+
+  const setAnchorLink = (id, url) =>
+    setAnchorLinks((prev) => ({ ...prev, [id]: url }));
+
   // `draft` is the task currently open in the modal:
   //   null            → modal closed
   //   { id: null,… }   → creating a new task
@@ -675,7 +788,7 @@ export default function App() {
         </Button>
       </header>
 
-      {/* TODO M11 anchors: render the Anchor Board above the board. */}
+      <AnchorBoard links={anchorLinks} onChange={setAnchorLink} />
 
       <DriverStrip tasks={tasks} />
 
